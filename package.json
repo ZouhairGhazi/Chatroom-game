@@ -1,0 +1,18 @@
+{
+  "name": "node-game",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "node ./bin/www",
+    "devstart": "nodemon ./bin/www"
+  },
+  "dependencies": {
+    "alert": "^5.0.10",
+    "debug": "~2.6.9",
+    "express": "~4.16.0",
+    "socket.io": "^4.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.10"
+  }
+}

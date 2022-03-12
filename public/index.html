@@ -1,0 +1,283 @@
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Node Game</title>
+    <link rel="stylesheet" href="stylesheet.css">
+</head>
+
+<body>
+    <!-- Main canvas, where the game will take place -->
+    <div class="canvasContaine"><canvas id="canvas" width="800" height="640">
+        </canvas></div>
+
+    <!-- A modal type div, pops-up at the beginning of the game and closes after completing the form -->
+    <div id="modal_wrapper">
+        <div id="modal_window">
+
+            <div style="text-align: center;">
+
+                <p>
+                    Welcome to mapTSE, a virtual enhanced virtual world based on TSE !
+                    Everyone can meet and chat with their friends in the comfort of their home.
+                    Start by entering your name, and selecting your avatar !
+                </p>
+
+                <p><label>Your Name<strong>*</strong><br><br>
+                <input type="text" autofocus required size="48" id="name" value=""></label></p>
+                <p><label>Choose your avatar<strong>*</strong><br><br>
+                <input type="radio" id="0" name="skin" required>
+                <!-- The chosen ids here are related to the sprites and their parsing, and not chosen randomly -->
+                <label for="html">
+                    <img src="skins/skin1.png">
+                </label>
+                <input type="radio" id="3" name="skin">
+                <label for="html">
+                    <img src="skins/skin2.png">
+                </label>
+                <input type="radio" id="6" name="skin">
+                <label for="html">
+                    <img src="skins/skin3.png">
+                </label>
+                <input type="radio" id="9" name="skin">
+                <label for="html">
+                    <img src="skins/skin4.png">
+                </label><br>
+                <input type="radio" id="12" name="skin">
+                <label for="html">
+                    <img src="skins/skin5.png">
+                </label>
+                <input type="radio" id="15" name="skin">
+                <label for="html">
+                    <img src="skins/skin6.png">
+                </label>
+                <input type="radio" id="18" name="skin">
+                <label for="html">
+                    <img src="skins/skin7.png">
+                </label>
+                <input type="radio" id="21" name="skin">
+                <label for="html">
+                    <img src="skins/skin8.png">
+                </label><br><br>
+                <button id="logout" onclick="checkForm()" style="margin-right: 33%;">Enter</button>
+                </label></p>
+
+
+
+            </div> 
+        </div> 
+        <div id="chat" class="chatwindow">
+            <ul id="messages"></ul>
+
+            <input type="text" id="message-input" autocomplete="off" placeholder="Type a message" />
+            <button id="send-message" onclick="sendMessage()">Send</button>
+            <button id="close_chat" onclick="close_chatwindow()">Close</button>
+            <div id="dialog-confirm"></div>
+
+        </div>
+        <button id="logout" onclick="logout()">Logout</button>
+
+
+
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="/game.js"></script>
+        <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+        <script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+        <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+        <!-- The code related to the chatting system was put here to avoid confusing with the canvas logic, i.e drawing map, sprites ... -->
+        <script type="text/javascript">
+            let chatbeginned = false;
+
+            function logout(){
+                location.reload();
+            }
+
+            function close_chatwindow() {
+
+                var chatwindow = document.getElementById('chat')
+
+                chatwindow.style.display = "none";
+                chatbeginned = false;
+
+            }
+
+            function sendMessage() {
+                var message = document.getElementById("message-input")
+                if (message.value != "") {
+                    console.log(message.value + " sent")
+                    socket.emit("chat message", message.value, socket.id);
+                    message.value = "";
+                }
+            }
+
+            socket.on('chat', function (msg, sender, username, data) {
+                var messages = document.getElementById('messages');
+                var item = document.createElement('li');
+                const d = new Date();
+                let hour = d.getHours();
+                let min = d.getMinutes();
+
+                item.textContent = hour + ':' + min + ' ' + username + ": " + msg;
+
+
+
+                messages.appendChild(item);
+                window.scrollTo(0, document.body.scrollHeight);
+            });
+
+            socket.on('chat prompt', function (data) {
+
+                if (!chatbeginned) {
+
+
+                    chatbeginned = true;
+
+                    function buttonAction() {
+                        if (socket.id == data.player1_socket)
+                            $("#dialog-confirm").html("Do you want to chat with " + data.player2_username);
+                        else if (socket.id == data.player2_socket)
+                            $("#dialog-confirm").html("Do you want to chat with " + data.player1_username);
+
+                        player1accept = false;
+                        player2accept = false;
+                        function close_chatprompt() {
+                            $("#dialog-confirm").dialog('close');
+
+                        }
+
+                        function close_chatwindow() {
+
+                            var chatwindow = document.getElementById('chat')
+
+                            chatwindow.style.display = "none";
+
+                        }
+
+                        socket.on('endchat', () => {
+                            alert('one player has declined the invitation');
+                            close_chatprompt();
+                            close_chatwindow();
+
+                        })
+
+                        $("#dialog-confirm").dialog({
+                            resizable: false,
+                            modal: true,
+                            title: "Click Yes or No based on your preference",
+                            height: 250,
+                            width: 400,
+                            buttons: {
+                                "Yes": function () {
+                                    player1accept = true;
+                                    socket.emit('chat invite', data);
+                                    socket.on('chat accepted', function (data) {
+                                        player2accept = true;
+                                        console.log('chat accepted by both players');
+                                        var chatwindow = document.getElementById('chat')
+
+                                        chatwindow.style.display = "block";
+
+
+
+                                    });
+
+                                    $(this).dialog('close');
+                                },
+                                "No": function () {
+                                    console.log('chat declined ')
+                                    socket.emit('chat declined', { "id": socket.id, "adversaireSocketId": (socket.id != data.player1_socket) ? data.player1_socket : data.player2_socket });
+                                    $(this).dialog('close');
+                                }
+
+
+                            }
+                        });
+                    }
+
+
+                    buttonAction();
+                }
+
+            })
+
+
+            var modal_init = function modal_init() {
+
+                var modalWrapper = document.getElementById("modal_wrapper");
+                var modalWindow = document.getElementById("modal_window");
+
+                var openModal = function (e) {
+                    modalWrapper.className = "overlay";
+                    var overflow = modalWindow.offsetHeight - document.documentElement.clientHeight;
+                    if (overflow > 0) {
+                        modalWindow.style.maxHeight = (parseInt(window.getComputedStyle(modalWindow).height) - overflow) + "px";
+                    }
+                    modalWindow.style.marginTop = (-modalWindow.offsetHeight) / 2 + "px";
+                    modalWindow.style.marginLeft = (-modalWindow.offsetWidth) / 2 + "px";
+                };
+                openModal();
+                function closeModal(e) {
+                    modalWrapper.className = "";
+                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                };
+
+                var clickHandler = function (e) {
+                    if (!e.target) e.target = e.srcElement;
+                    if (e.target.tagName == "DIV") {
+                        if (e.target.id != "modal_window") closeModal(e);
+                    }
+                };
+
+                var keyHandler = function (e) {
+                    if (e.keyCode == 27) closeModal(e);
+                };
+            };
+            var checkForm = function (e) {
+                var name = document.getElementById('name');
+                if (name.value == "") {
+                    alert("Please enter your Name");
+                    name.focus();
+                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                    return;
+                }
+                else if (name.value.length > 30) {
+                    alert("Please do not exceed 30 characters in name");
+                    name.focus();
+                    e.preventDefault ? e.preventDefault() : e.returnValue = false;
+                    return;
+
+                } else {
+                    var name1 = name.value;
+                    var skin = document.getElementsByName('skin');
+                    var flag = true;
+
+                    for(i = 0; i < skin.length; i++){
+                        if(skin[i].checked){
+                            flag = false;
+                            socket.emit("init", name1, skin[i].id);
+                        }
+                    }
+
+                    if (flag)
+                        socket.emit("init", name1, '0');
+                    document.getElementById("modal_wrapper").className = ""
+                }
+
+                socket.broadcast.emit('new player', name1);
+
+            };
+            if (document.addEventListener) {
+                var el = document.getElementById("connect");
+                if (el)
+                    document.getElementById("connect").addEventListener("submit", checkForm, false);
+                document.addEventListener("DOMContentLoaded", modal_init, false);
+            } else {
+                document.getElementById("connect").attachEvent("onsubmit", checkForm);
+                window.attachEvent("onload", modal_init);
+            }
+        </script>
+</body>
+
+</html>
